@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; img-src 'self'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'self'">
+  <meta name="theme-color" content="#f3f6f3">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Interest Calculator">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <title>Interest Calculator</title>
+  <style>
+    :root { color-scheme:light; --ink:#17251f; --muted:#748078; --line:#e3e9e4; --green:#176b4b; --green-dark:#10543a; --wash:#f3f6f3; --danger:#a24d46; }
+    * { box-sizing:border-box; }
+    html { min-height:100%; background:var(--wash); }
+    body { margin:0; min-height:100vh; min-height:100dvh; background:var(--wash); color:var(--ink); font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; -webkit-text-size-adjust:100%; }
+    button,input { font:inherit; }
+    button { touch-action:manipulation; }
+    .shell { width:min(100%,780px); margin:0 auto; padding:max(18px,env(safe-area-inset-top)) 16px max(26px,env(safe-area-inset-bottom)); }
+    .topline { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+    .brand { display:flex; align-items:center; gap:11px; min-width:0; }
+    .mark { flex:none; width:44px; height:44px; border-radius:14px; display:grid; place-items:center; background:var(--green); color:#fff; font-size:22px; font-weight:750; box-shadow:0 5px 14px #176b4b26; }
+    h1 { margin:0; font-size:20px; line-height:1.2; letter-spacing:-.025em; }
+    .subtitle { margin-top:3px; color:var(--muted); font-size:13px; }
+    button { min-height:46px; border:1px solid var(--line); border-radius:12px; padding:0 14px; background:#fff; color:var(--ink); font-size:15px; font-weight:650; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    button:active { transform:scale(.985); }
+    button:focus-visible,input:focus-visible { outline:3px solid #176b4b42; outline-offset:2px; }
+    .primary { border-color:var(--green); background:var(--green); color:#fff; }
+    .primary:active { background:var(--green-dark); }
+    .clear-button { color:#46544b; }
+    .totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+    .total-card { min-width:0; padding:14px 13px; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 3px 12px #1a302008; }
+    .total-label { color:var(--muted); font-size:12px; font-weight:650; line-height:1.25; }
+    .total-value { margin-top:6px; font-size:clamp(14px,4vw,19px); line-height:1.25; font-weight:750; letter-spacing:-.025em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .total-card:first-child .total-value { color:var(--green); }
+    .entries { display:grid; gap:13px; }
+    .entry-card { overflow:hidden; background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:0 3px 12px #1a302008; }
+    .entry-head { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 15px; border-bottom:1px solid var(--line); }
+    .entry-title { font-size:15px; font-weight:700; }
+    .remove-button { min-width:76px; min-height:42px; padding:0 12px; border-color:transparent; color:var(--danger); background:#fff; }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:14px; }
+    .field { min-width:0; }
+    .field.full { grid-column:1/-1; }
+    label { display:block; margin:0 0 6px 2px; color:#5d6a61; font-size:13px; font-weight:650; }
+    .input-wrap { position:relative; }
+    input { display:block; width:100%; min-width:0; height:50px; padding:0 12px; border:1px solid #dce4dd; border-radius:11px; background:#fff; color:var(--ink); font-size:16px; line-height:1.2; }
+    input::placeholder { color:#a0aaa3; }
+    input:focus { border-color:#70a990; outline:none; box-shadow:0 0 0 3px #176b4b18; }
+    input[type=number] { font-variant-numeric:tabular-nums; }
+    .suffix { position:absolute; right:13px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
+    .rate-input { padding-right:42px; }
+    .results { display:grid; grid-template-columns:.72fr 1.28fr; gap:9px; padding:0 14px 14px; }
+    .result { min-width:0; padding:12px; border:1px solid #e6ece7; border-radius:11px; background:#f8faf8; }
+    .result.total-result { grid-column:1/-1; background:#f0f7f2; border-color:#dcebe0; }
+    .result-label { color:var(--muted); font-size:12px; font-weight:650; }
+    .result-value { margin-top:4px; color:var(--green-dark); font-size:16px; font-weight:750; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .total-result .result-value { font-size:18px; }
+    .empty { padding:27px 18px; border:1px dashed #cad7cd; border-radius:15px; background:#ffffffa8; color:var(--muted); text-align:center; }
+    .empty strong { display:block; margin-bottom:4px; color:#44544a; font-size:15px; }
+    .add-button { display:block; width:100%; min-height:52px; margin-top:14px; }
+    .privacy-note { margin:16px 4px 0; color:#828e85; font-size:12px; text-align:center; }
+    @media(max-width:360px) { .shell{padding-left:12px;padding-right:12px}.topline{align-items:flex-start;flex-wrap:wrap}.topline .clear-button{margin-left:auto}.total-card{padding:12px 9px}.total-label{font-size:11px} }
+    @media(orientation:landscape) and (max-height:520px) { .shell{width:min(100%,920px);padding-top:max(10px,env(safe-area-inset-top))}.topline,.totals{margin-bottom:12px}.fields{grid-template-columns:repeat(4,minmax(0,1fr))}.field.full{grid-column:span 2}.results{grid-template-columns:repeat(3,minmax(0,1fr))}.result.total-result{grid-column:auto} }
+    @media(min-width:700px) { .shell{padding-left:24px;padding-right:24px}.fields{grid-template-columns:repeat(4,minmax(0,1fr))}.field.full{grid-column:span 2}.results{grid-template-columns:repeat(3,minmax(0,1fr))}.result.total-result{grid-column:auto} }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topline">
+      <div class="brand"><div class="mark" aria-hidden="true">₹</div><div><h1>Interest Calculator</h1><div class="subtitle">Personal interest ledger</div></div></div>
+      <button class="clear-button" id="clearButton" type="button">New Calculation</button>
+    </header>
+    <section class="totals" aria-label="Totals">
+      <div class="total-card"><div class="total-label">Principal total</div><div class="total-value" id="principalTotal">₹0.00</div></div>
+      <div class="total-card"><div class="total-label">Interest total</div><div class="total-value" id="interestTotal">₹0.00</div></div>
+      <div class="total-card"><div class="total-label">Grand total</div><div class="total-value" id="grandTotal">₹0.00</div></div>
+    </section>
+    <section id="entries" class="entries" aria-label="Calculation entries"></section>
+    <div id="emptyState" class="empty"><strong>No entries yet</strong>Add an entry to start a calculation.</div>
+    <button class="primary add-button" id="addButton" type="button">＋ Add Entry</button>
+    <p class="privacy-note">Calculations stay in this page while it is open. Nothing is saved.</p>
+  </main>
+  <script>
+    // In-memory only: this standalone page has no persistence or external connections.
+    const entries = document.getElementById('entries');
+    const money = value => new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number.isFinite(value)?value:0);
+    function addEntry() {
+      const card = document.createElement('article');
+      card.className = 'entry-card';
+      card.innerHTML = `
+        <div class="entry-head"><div class="entry-title">Entry <span class="entry-number"></span></div><button class="remove-button" type="button" aria-label="Remove entry">Remove</button></div>
+        <div class="fields">
+          <div class="field full"><label>Name</label><input class="name" type="text" autocomplete="off" placeholder="Name"></div>
+          <div class="field"><label>Amount (₹)</label><input class="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="field"><label>Annual interest rate (%)</label><div class="input-wrap"><input class="rate rate-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0"><span class="suffix">%</span></div></div>
+          <div class="field"><label>Start date</label><input class="start" type="date"></div>
+          <div class="field"><label>End date</label><input class="end" type="date"></div>
+        </div>
+        <div class="results">
+          <div class="result"><div class="result-label">Days</div><div class="result-value days">—</div></div>
+          <div class="result"><div class="result-label">Interest amount</div><div class="result-value interest">₹0.00</div></div>
+          <div class="result total-result"><div class="result-label">Total amount</div><div class="result-value total">₹0.00</div></div>
+        </div>`;
+      card.querySelectorAll('input').forEach(input => input.addEventListener('input', recalculate));
+      card.querySelector('.remove-button').addEventListener('click', () => { card.remove(); refresh(); });
+      entries.appendChild(card);
+      refresh();
+      card.querySelector('.name').focus({preventScroll:true});
+    }
+    function daysBetween(start,end) {
+      if(!start||!end) return null;
+      const startTime=Date.parse(start+'T00:00:00Z'), endTime=Date.parse(end+'T00:00:00Z');
+      if(!Number.isFinite(startTime)||!Number.isFinite(endTime)) return null;
+      return Math.round((endTime-startTime)/86400000);
+    }
+    function recalculate() {
+      let principal=0, interestTotal=0, grandTotal=0;
+      for(const card of entries.children) {
+        const amountField=card.querySelector('.amount'), rateField=card.querySelector('.rate');
+        const amount=amountField.value===''?0:Number(amountField.value), rate=rateField.value===''?0:Number(rateField.value);
+        const days=daysBetween(card.querySelector('.start').value,card.querySelector('.end').value);
+        const interest=days===null?0:amount*days*(rate/100)/365, total=amount+interest;
+        card.querySelector('.days').textContent=days===null?'—':String(days);
+        card.querySelector('.interest').textContent=money(interest);
+        card.querySelector('.total').textContent=money(total);
+        principal+=amount; interestTotal+=interest; grandTotal+=total;
+      }
+      document.getElementById('principalTotal').textContent=money(principal);
+      document.getElementById('interestTotal').textContent=money(interestTotal);
+      document.getElementById('grandTotal').textContent=money(grandTotal);
+      [...entries.querySelectorAll('.entry-number')].forEach((node,index)=>{node.textContent=index+1});
+    }
+    function refresh() {
+      document.getElementById('emptyState').hidden=entries.children.length!==0;
+      recalculate();
+    }
+    function clearAll() {
+      if(entries.children.length===0) return;
+      if(!window.confirm('Clear all entries and start a new calculation?')) return;
+      entries.replaceChildren();
+      refresh();
+    }
+    document.getElementById('addButton').addEventListener('click',addEntry);
+    document.getElementById('clearButton').addEventListener('click',clearAll);
+    // A fresh launch starts with zero entries and no prefilled fields.
+    refresh();
+  </script>
+</body>
+</html>

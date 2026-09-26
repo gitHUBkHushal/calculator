@@ -1,0 +1,13 @@
+{
+  "name": "Interest Calculator",
+  "short_name": "Interest",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f6f3",
+  "theme_color": "#f3f6f3",
+  "icons": [
+    { "src": "./apple-touch-icon.png", "sizes": "1000x1000", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -150,3 +150,26 @@
   </script>
 </body>
 </html>
+
+<script>
+const copySummary = async card => {
+  const get = selector => card.querySelector(selector);
+  const amount = get(".amount").value;
+  const rate = get(".rate").value;
+  const money = value => new Intl.NumberFormat("en-IN", {style:"currency", currency:"INR", minimumFractionDigits:2, maximumFractionDigits:2}).format(Number(value) || 0);
+  const date = value => value ? new Intl.DateTimeFormat("en-IN", {day:"2-digit", month:"short", year:"numeric", timeZone:"UTC"}).format(new Date(value + "T00:00:00Z")) : "—";
+  const text = ["Interest Calculation", "Name: " + (get(".name").value.trim() || "—"), "Amount: " + (amount ? money(amount) : "—"), "Start date: " + date(get(".start").value), "End date: " + date(get(".end").value), "Days: " + get(".days").textContent, "Annual interest rate: " + (rate ? rate + "%" : "—"), "Interest amount: " + get(".interest").textContent, "Total amount: " + get(".total").textContent].join("\n");
+  try { await navigator.clipboard.writeText(text); return true; } catch (_) {
+    const area = document.createElement("textarea"); area.value = text; area.style.cssText = "position:fixed;opacity:0"; document.body.append(area); area.select(); const ok = document.execCommand("copy"); area.remove(); return ok;
+  }
+};
+const addCopyButton = card => {
+  if (card.querySelector(".copy-calculation")) return;
+  const button = document.createElement("button"); button.type = "button"; button.className = "copy-calculation"; button.textContent = "Copy calculation"; button.style.cssText = "color:#176b4b;min-height:42px;padding:0 10px";
+  button.addEventListener("click", async () => { const ok = await copySummary(card); button.textContent = ok ? "Copied" : "Copy failed"; setTimeout(() => { if (button.isConnected) button.textContent = "Copy calculation"; }, 1800); });
+  card.querySelector(".entry-head").append(button);
+};
+const copyObserver = new MutationObserver(() => document.querySelectorAll("#entries .entry-card").forEach(addCopyButton));
+copyObserver.observe(document.getElementById("entries"), {childList:true});
+document.querySelectorAll("#entries .entry-card").forEach(addCopyButton);
+</script>

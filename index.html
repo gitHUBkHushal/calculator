@@ -17,7 +17,7 @@
     * { box-sizing:border-box; }
     html { min-height:100%; background:var(--wash); }
     body { margin:0; min-height:100vh; min-height:100dvh; background:var(--wash); color:var(--ink); font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; -webkit-text-size-adjust:100%; }
-    button,input { font:inherit; }
+    button,input,select { font:inherit; }
     button { touch-action:manipulation; }
     .shell { width:min(100%,780px); margin:0 auto; padding:max(18px,env(safe-area-inset-top)) 16px max(26px,env(safe-area-inset-bottom)); }
     .topline { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
@@ -47,6 +47,7 @@
     label { display:block; margin:0 0 6px 2px; color:#5d6a61; font-size:13px; font-weight:650; }
     .input-wrap { position:relative; }
     input { display:block; width:100%; min-width:0; height:50px; padding:0 12px; border:1px solid #dce4dd; border-radius:11px; background:#fff; color:var(--ink); font-size:16px; line-height:1.2; }
+    select { display:block; width:100%; min-width:0; height:50px; padding:0 12px; border:1px solid #dce4dd; border-radius:11px; background:#fff; color:var(--ink); font-size:16px; }
     input::placeholder { color:#a0aaa3; }
     input:focus { border-color:#70a990; outline:none; box-shadow:0 0 0 3px #176b4b18; }
     input[type=number] { font-variant-numeric:tabular-nums; }
@@ -96,15 +97,23 @@
           <div class="field full"><label>Name</label><input class="name" type="text" autocomplete="off" placeholder="Name"></div>
           <div class="field"><label>Amount (₹)</label><input class="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
           <div class="field"><label>Annual interest rate (%)</label><div class="input-wrap"><input class="rate rate-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0"><span class="suffix">%</span></div></div>
-          <div class="field"><label>Start date</label><input class="start" type="date"></div>
-          <div class="field"><label>End date</label><input class="end" type="date"></div>
+          <div class="field"><label>Calculate by</label><select class="duration-mode" aria-label="Calculate by"><option value="dates">Start and end dates</option><option value="months">Number of months</option></select></div>
+          <div class="field date-fields"><label>Start date</label><input class="start" type="date"></div>
+          <div class="field date-fields"><label>End date</label><input class="end" type="date"></div>
+          <div class="field month-fields" hidden><label>Number of months</label><input class="months" type="number" inputmode="numeric" min="1" step="1" placeholder="e.g. 6"></div>
         </div>
         <div class="results">
-          <div class="result"><div class="result-label">Days</div><div class="result-value days">—</div></div>
+          <div class="result"><div class="result-label duration-label">Duration</div><div class="result-value days">—</div></div>
           <div class="result"><div class="result-label">Interest amount</div><div class="result-value interest">₹0.00</div></div>
           <div class="result total-result"><div class="result-label">Total amount</div><div class="result-value total">₹0.00</div></div>
         </div>`;
       card.querySelectorAll('input').forEach(input => input.addEventListener('input', recalculate));
+      card.querySelector('.duration-mode').addEventListener('change', () => {
+        const monthsMode=card.querySelector('.duration-mode').value==='months';
+        card.querySelectorAll('.date-fields').forEach(field => field.hidden=monthsMode);
+        card.querySelector('.month-fields').hidden=!monthsMode;
+        recalculate();
+      });
       card.querySelector('.remove-button').addEventListener('click', () => { card.remove(); refresh(); });
       entries.appendChild(card);
       refresh();
@@ -121,9 +130,15 @@
       for(const card of entries.children) {
         const amountField=card.querySelector('.amount'), rateField=card.querySelector('.rate');
         const amount=amountField.value===''?0:Number(amountField.value), rate=rateField.value===''?0:Number(rateField.value);
-        const days=daysBetween(card.querySelector('.start').value,card.querySelector('.end').value);
-        const interest=days===null?0:amount*days*(rate/100)/365, total=amount+interest;
-        card.querySelector('.days').textContent=days===null?'—':String(days);
+        const monthsMode=card.querySelector('.duration-mode').value==='months';
+        const monthsField=card.querySelector('.months');
+        const months=monthsField.value===''?null:Number(monthsField.value);
+        const days=monthsMode?null:daysBetween(card.querySelector('.start').value,card.querySelector('.end').value);
+        const validMonths=months!==null&&Number.isInteger(months)&&months>=1;
+        const hasDuration=monthsMode?validMonths:days!==null;
+        const interest=hasDuration?amount*(monthsMode?months/12:days/365)*(rate/100):0, total=amount+interest;
+        card.querySelector('.duration-label').textContent=monthsMode?'Months':'Days';
+        card.querySelector('.days').textContent=monthsMode?(validMonths?String(months):'—'):(days===null?'—':String(days));
         card.querySelector('.interest').textContent=money(interest);
         card.querySelector('.total').textContent=money(total);
         principal+=amount; interestTotal+=interest; grandTotal+=total;
@@ -158,7 +173,9 @@ const copySummary = async card => {
   const rate = get(".rate").value;
   const money = value => new Intl.NumberFormat("en-IN", {style:"currency", currency:"INR", minimumFractionDigits:2, maximumFractionDigits:2}).format(Number(value) || 0);
   const date = value => value ? new Intl.DateTimeFormat("en-IN", {day:"2-digit", month:"short", year:"numeric", timeZone:"UTC"}).format(new Date(value + "T00:00:00Z")) : "—";
-  const text = ["Interest Calculation", "Name: " + (get(".name").value.trim() || "—"), "Amount: " + (amount ? money(amount) : "—"), "Start date: " + date(get(".start").value), "End date: " + date(get(".end").value), "Days: " + get(".days").textContent, "Annual interest rate: " + (rate ? rate + "%" : "—"), "Interest amount: " + get(".interest").textContent, "Total amount: " + get(".total").textContent].join("\n");
+  const monthsMode=get(".duration-mode").value==="months";
+  const period=monthsMode?(get(".months").value||"—")+" months":date(get(".start").value)+" to "+date(get(".end").value);
+  const text = ["Interest Calculation", "Name: " + (get(".name").value.trim() || "—"), "Amount: " + (amount ? money(amount) : "—"), "Calculation period: " + period, (monthsMode?"Months: ":"Days: ") + get(".days").textContent, "Annual interest rate: " + (rate ? rate + "%" : "—"), "Interest amount: " + get(".interest").textContent, "Total amount: " + get(".total").textContent].join("\n");
   try { await navigator.clipboard.writeText(text); return true; } catch (_) {
     const area = document.createElement("textarea"); area.value = text; area.style.cssText = "position:fixed;opacity:0"; document.body.append(area); area.select(); const ok = document.execCommand("copy"); area.remove(); return ok;
   }
@@ -183,7 +200,7 @@ document.querySelectorAll("#entries .entry-card").forEach(addCopyButton);
     const box=(x,y,w,h,r,color,stroke)=>{ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=color;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke()}};
     box(40,40,920,640,28,"#fff","#e3e9e4"); box(72,72,58,58,18,"#176b4b");ctx.fillStyle="#fff";ctx.font="bold 32px Arial";ctx.textAlign="center";ctx.fillText("₹",101,112);ctx.textAlign="left";
     ctx.fillStyle="#17251f";ctx.font="bold 30px Arial";ctx.fillText("Interest Calculation",152,101);ctx.fillStyle="#748078";ctx.font="18px Arial";ctx.fillText("Entry "+(card.querySelector(".entry-number")?.textContent||"1"),152,130);
-    const amount=card.querySelector(".amount").value,rate=card.querySelector(".rate").value, rows=[["Name",card.querySelector(".name").value.trim()||"—"],["Amount",amount?money(amount):"—"],["Start date",date(card.querySelector(".start").value)],["End date",date(card.querySelector(".end").value)],["Days",card.querySelector(".days").textContent],["Annual interest rate",rate?rate+"%":"—"]];
+    const amount=card.querySelector(".amount").value,rate=card.querySelector(".rate").value,monthsMode=card.querySelector(".duration-mode").value==="months",period=monthsMode?(card.querySelector(".months").value||"—")+" months":date(card.querySelector(".start").value)+" to "+date(card.querySelector(".end").value),rows=[["Name",card.querySelector(".name").value.trim()||"—"],["Amount",amount?money(amount):"—"],["Calculation period",period],[monthsMode?"Months":"Days",card.querySelector(".days").textContent],["Annual interest rate",rate?rate+"%":"—"],[""," "]];
     rows.forEach(([label,value],i)=>{const x=72+(i%2)*432,y=178+Math.floor(i/2)*104;box(x,y,408,82,14,"#f8faf8","#e6ece7");ctx.fillStyle="#748078";ctx.font="17px Arial";ctx.fillText(label.toUpperCase(),x+20,y+30);ctx.fillStyle="#17251f";ctx.font="bold 24px Arial";ctx.fillText(String(value).slice(0,28),x+20,y+63)});
     box(72,510,856,130,18,"#f0f7f2","#dcebe0");ctx.fillStyle="#748078";ctx.font="17px Arial";ctx.fillText("INTEREST AMOUNT",96,548);ctx.fillText("TOTAL AMOUNT",520,548);ctx.fillStyle="#10543a";ctx.font="bold 30px Arial";ctx.fillText(card.querySelector(".interest").textContent,96,598);ctx.fillText(card.querySelector(".total").textContent,520,598);
     return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error("Image creation failed")),"image/png"));

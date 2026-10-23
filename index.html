@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; img-src 'self'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; worker-src 'self'; connect-src 'none'; img-src 'self' blob:; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'self'">
   <meta name="theme-color" content="#f3f6f3">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Interest Calculator">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./apple-touch-icon.png">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <title>Interest Calculator</title>
   <style>
@@ -27,7 +28,8 @@
     .subtitle { margin-top:3px; color:var(--muted); font-size:13px; }
     button { min-height:46px; border:1px solid var(--line); border-radius:12px; padding:0 14px; background:#fff; color:var(--ink); font-size:15px; font-weight:650; cursor:pointer; -webkit-tap-highlight-color:transparent; }
     button:active { transform:scale(.985); }
-    button:focus-visible,input:focus-visible { outline:3px solid #176b4b42; outline-offset:2px; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    button:focus-visible,input:focus-visible,select:focus-visible { outline:3px solid #176b4b42; outline-offset:2px; }
     .primary { border-color:var(--green); background:var(--green); color:#fff; }
     .primary:active { background:var(--green-dark); }
     .clear-button { color:#46544b; }
@@ -44,6 +46,9 @@
     .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:14px; }
     .field { min-width:0; }
     .field.full { grid-column:1/-1; }
+    .field.invalid input,.field.invalid select { border-color:var(--danger); box-shadow:0 0 0 3px #a24d4618; }
+    .validation-message { grid-column:1/-1; padding:10px 12px; border:1px solid #ead6d3; border-radius:11px; background:#fff8f7; color:var(--danger); font-size:13px; font-weight:600; }
+    .entry-card.invalid { border-color:#d9b5b0; }
     label { display:block; margin:0 0 6px 2px; color:#5d6a61; font-size:13px; font-weight:650; }
     .input-wrap { position:relative; }
     input { display:block; width:100%; min-width:0; height:50px; padding:0 12px; border:1px solid #dce4dd; border-radius:11px; background:#fff; color:var(--ink); font-size:16px; line-height:1.2; }
@@ -96,23 +101,31 @@
         <div class="fields">
           <div class="field full"><label>From</label><input class="sender" type="text" autocomplete="off" placeholder="Name"></div>
           <div class="field full"><label>To</label><input class="name" type="text" autocomplete="off" placeholder="Name"></div>
-          <div class="field"><label>Amount (₹)</label><input class="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
-          <div class="field"><label>Annual interest rate (%)</label><div class="input-wrap"><input class="rate rate-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0"><span class="suffix">%</span></div></div>
+          <div class="field amount-field"><label>Amount (₹)</label><input class="amount" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="0.00"></div>
+          <div class="field rate-field"><label>Annual interest rate (%)</label><div class="input-wrap"><input class="rate rate-input" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="0"><span class="suffix">%</span></div></div>
           <div class="field"><label>Calculate by</label><select class="duration-mode" aria-label="Calculate by"><option value="dates">Start and end dates</option><option value="months">Number of months</option></select></div>
-          <div class="field date-fields"><label>Start date</label><input class="start" type="date"></div>
-          <div class="field date-fields"><label>End date</label><input class="end" type="date"></div>
+          <div class="field date-fields start-field"><label>Start date</label><input class="start" type="date" required></div>
+          <div class="field date-fields end-field"><label>End date</label><input class="end" type="date" required></div>
           <div class="field month-fields" hidden><label>Number of months</label><input class="months" type="number" inputmode="numeric" min="1" step="1" placeholder="e.g. 6"></div>
+          <div class="validation-message" role="status" aria-live="polite" hidden></div>
         </div>
         <div class="results">
           <div class="result"><div class="result-label duration-label">Duration</div><div class="result-value days">—</div></div>
           <div class="result"><div class="result-label">Interest amount</div><div class="result-value interest">₹0.00</div></div>
           <div class="result total-result"><div class="result-label">Total amount</div><div class="result-value total">₹0.00</div></div>
         </div>`;
-      card.querySelectorAll('input').forEach(input => input.addEventListener('input', recalculate));
+      card.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', recalculate);
+        input.addEventListener('change', recalculate);
+      });
       card.querySelector('.duration-mode').addEventListener('change', () => {
         const monthsMode=card.querySelector('.duration-mode').value==='months';
-        card.querySelectorAll('.date-fields').forEach(field => field.hidden=monthsMode);
+        card.querySelectorAll('.date-fields').forEach(field => {
+          field.hidden=monthsMode;
+          field.querySelector('input').required=!monthsMode;
+        });
         card.querySelector('.month-fields').hidden=!monthsMode;
+        card.querySelector('.months').required=monthsMode;
         recalculate();
       });
       card.querySelector('.remove-button').addEventListener('click', () => { card.remove(); refresh(); });
@@ -121,8 +134,15 @@
       card.querySelector('.name').focus({preventScroll:true});
     }
     function daysBetween(start,end) {
-      if(!start||!end) return null;
-      const startTime=Date.parse(start+'T00:00:00Z'), endTime=Date.parse(end+'T00:00:00Z');
+      const parseDate=value=>{
+        if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+        const [year,month,day]=value.split('-').map(Number), parsed=new Date(0);
+        parsed.setUTCHours(0,0,0,0);
+        parsed.setUTCFullYear(year,month-1,day);
+        const timestamp=parsed.getTime();
+        return parsed.getUTCFullYear()===year&&parsed.getUTCMonth()===month-1&&parsed.getUTCDate()===day?timestamp:null;
+      };
+      const startTime=parseDate(start), endTime=parseDate(end);
       if(!Number.isFinite(startTime)||!Number.isFinite(endTime)) return null;
       return Math.round((endTime-startTime)/86400000);
     }
@@ -130,19 +150,57 @@
       let principal=0, interestTotal=0, grandTotal=0;
       for(const card of entries.children) {
         const amountField=card.querySelector('.amount'), rateField=card.querySelector('.rate');
-        const amount=amountField.value===''?0:Number(amountField.value), rate=rateField.value===''?0:Number(rateField.value);
+        const amountRaw=amountField.value, rateRaw=rateField.value;
+        const amount=amountRaw.trim()===''?NaN:Number(amountRaw), rate=rateRaw.trim()===''?NaN:Number(rateRaw);
+        const errors=[], invalidFields=new Set();
+        const amountValid=Number.isFinite(amount)&&amount>=0;
+        const rateValid=Number.isFinite(rate)&&rate>=0;
+        if(!amountValid){errors.push(amountRaw.trim()===''?'Enter an amount.':'Amount must be a valid number of zero or more.');invalidFields.add('.amount-field');}
+        if(!rateValid){errors.push(rateRaw.trim()===''?'Enter an annual interest rate.':'Annual interest rate must be a valid number of zero or more.');invalidFields.add('.rate-field');}
         const monthsMode=card.querySelector('.duration-mode').value==='months';
         const monthsField=card.querySelector('.months');
-        const months=monthsField.value===''?null:Number(monthsField.value);
-        const days=monthsMode?null:daysBetween(card.querySelector('.start').value,card.querySelector('.end').value);
-        const validMonths=months!==null&&Number.isInteger(months)&&months>=1;
-        const hasDuration=monthsMode?validMonths:days!==null;
-        const interest=hasDuration?amount*(monthsMode?months/12:days/365)*(rate/100):0, total=amount+interest;
+        const monthsRaw=monthsField.value, months=monthsRaw.trim()===''?NaN:Number(monthsRaw);
+        const startField=card.querySelector('.start'), endField=card.querySelector('.end');
+        const start=startField.value, end=endField.value;
+        let days=null, durationValid=false;
+        if(monthsMode) {
+          durationValid=Number.isFinite(months)&&Number.isInteger(months)&&months>0;
+          if(!durationValid){errors.push(monthsRaw.trim()===''?'Enter the number of months.':'Months must be a positive whole number.');invalidFields.add('.month-fields');}
+        } else {
+          if(!start){errors.push('Enter a start date.');invalidFields.add('.start-field');}
+          if(!end){errors.push('Enter an end date.');invalidFields.add('.end-field');}
+          if(start&&end){
+            days=daysBetween(start,end);
+            if(days===null){errors.push('Enter valid start and end dates.');invalidFields.add('.start-field');invalidFields.add('.end-field');}
+            else if(days<0){errors.push('End date must be the same as or later than the start date.');invalidFields.add('.end-field');}
+            else durationValid=true;
+          }
+        }
+        const durationValue=monthsMode?months:days;
+        const interest=durationValid&&amountValid&&rateValid?(monthsMode?amount*(months/12)*(rate/100):amount*days*(rate/100)/365):0;
+        const total=amount+interest;
+        let calculationValid=durationValid&&amountValid&&rateValid&&Number.isFinite(interest)&&Number.isFinite(total);
+        if(durationValid&&amountValid&&rateValid&&!calculationValid){errors.push('These values are too large to calculate safely.');invalidFields.add('.amount-field');invalidFields.add('.rate-field');}
+        if(calculationValid&&(!Number.isFinite(principal+amount)||!Number.isFinite(interestTotal+interest)||!Number.isFinite(grandTotal+total))){
+          calculationValid=false;
+          errors.push('This entry would make the totals too large to calculate safely.');
+        }
+        for(const selector of ['.amount-field','.rate-field','.start-field','.end-field','.month-fields']){
+          const field=card.querySelector(selector), input=field.querySelector('input');
+          const invalid=invalidFields.has(selector);
+          field.classList.toggle('invalid',invalid);
+          input.setAttribute('aria-invalid',String(invalid));
+        }
+        card.classList.toggle('invalid',!calculationValid);
+        const message=card.querySelector('.validation-message');
+        message.textContent=errors.join(' ');
+        message.hidden=errors.length===0;
         card.querySelector('.duration-label').textContent=monthsMode?'Months':'Days';
-        card.querySelector('.days').textContent=monthsMode?(validMonths?String(months):'—'):(days===null?'—':String(days));
-        card.querySelector('.interest').textContent=money(interest);
-        card.querySelector('.total').textContent=money(total);
-        principal+=amount; interestTotal+=interest; grandTotal+=total;
+        card.querySelector('.days').textContent=durationValid?String(durationValue):'—';
+        card.querySelector('.interest').textContent=calculationValid?money(interest):'—';
+        card.querySelector('.total').textContent=calculationValid?money(total):'—';
+        card.querySelectorAll('.copy-calculation,.entry-screenshot').forEach(button=>button.disabled=!calculationValid);
+        if(calculationValid){principal+=amount; interestTotal+=interest; grandTotal+=total;}
       }
       document.getElementById('principalTotal').textContent=money(principal);
       document.getElementById('interestTotal').textContent=money(interestTotal);
@@ -161,6 +219,9 @@
     }
     document.getElementById('addButton').addEventListener('click',addEntry);
     document.getElementById('clearButton').addEventListener('click',clearAll);
+    if('serviceWorker' in navigator) {
+      window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{}),{once:true});
+    }
     // A fresh launch starts with zero entries and no prefilled fields.
     refresh();
   </script>
@@ -184,6 +245,7 @@ const copySummary = async card => {
 const addCopyButton = card => {
   if (card.querySelector(".copy-calculation")) return;
   const button = document.createElement("button"); button.type = "button"; button.className = "copy-calculation"; button.textContent = "Copy calculation"; button.style.cssText = "color:#176b4b;min-height:42px;padding:0 10px";
+  button.disabled=card.classList.contains("invalid");
   button.addEventListener("click", async () => { const ok = await copySummary(card); button.textContent = ok ? "Copied" : "Copy failed"; setTimeout(() => { if (button.isConnected) button.textContent = "Copy calculation"; }, 1800); });
   card.querySelector(".entry-head").append(button);
 };
@@ -206,8 +268,8 @@ document.querySelectorAll("#entries .entry-card").forEach(addCopyButton);
     box(72,510,856,130,18,"#f0f7f2","#dcebe0");ctx.fillStyle="#748078";ctx.font="17px Arial";ctx.fillText("INTEREST AMOUNT",96,548);ctx.fillText("TOTAL AMOUNT",520,548);ctx.fillStyle="#10543a";ctx.font="bold 30px Arial";ctx.fillText(card.querySelector(".interest").textContent,96,598);ctx.fillText(card.querySelector(".total").textContent,520,598);
     return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error("Image creation failed")),"image/png"));
   }
-  async function takeScreenshot(card,button){const original=button.textContent;button.textContent="Preparing…";button.disabled=true;try{const blob=await makeImage(card),n=card.querySelector(".entry-number")?.textContent||"1",file=new File([blob],"interest-calculation-entry-"+n+".png",{type:"image/png"});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:"Interest Calculation"});else{const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=file.name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}button.textContent="Screenshot ready"}catch(error){button.textContent="Try again"}finally{button.disabled=false;setTimeout(()=>{if(button.isConnected)button.textContent=original},2200)}}
-  function setup(card){card.querySelector(".copy-calculation")?.remove();if(card.querySelector(".entry-screenshot"))return;const button=document.createElement("button");button.type="button";button.className="entry-screenshot";button.textContent="Screenshot";button.setAttribute("aria-label","Take screenshot of this entry");button.style.cssText="color:#176b4b;min-height:42px;padding:0 10px;white-space:nowrap";button.addEventListener("click",()=>takeScreenshot(card,button));card.querySelector(".entry-head").append(button)}
+  async function takeScreenshot(card,button){const original=button.textContent;button.textContent="Preparing…";button.disabled=true;try{const blob=await makeImage(card),n=card.querySelector(".entry-number")?.textContent||"1",file=new File([blob],"interest-calculation-entry-"+n+".png",{type:"image/png"});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:"Interest Calculation"});else{const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=file.name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}button.textContent="Screenshot ready"}catch(error){button.textContent="Try again"}finally{button.disabled=card.classList.contains("invalid");setTimeout(()=>{if(button.isConnected)button.textContent=original},2200)}}
+  function setup(card){if(card.querySelector(".entry-screenshot"))return;const button=document.createElement("button");button.type="button";button.className="entry-screenshot";button.textContent="Screenshot";button.setAttribute("aria-label","Take screenshot of this entry");button.style.cssText="color:#176b4b;min-height:42px;padding:0 10px;white-space:nowrap";button.disabled=card.classList.contains("invalid");button.addEventListener("click",()=>takeScreenshot(card,button));card.querySelector(".entry-head").append(button)}
   const entries=document.getElementById("entries"),observer=new MutationObserver(()=>entries.querySelectorAll(".entry-card").forEach(setup));observer.observe(entries,{childList:true});entries.querySelectorAll(".entry-card").forEach(setup);
 })();
 </script>
